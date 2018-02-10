@@ -1,0 +1,9 @@
+package position_type;
+
+struct pos_t
+{
+    double timestamp;
+    double position[3];
+    double signal_strength;
+}
+
