@@ -28,6 +28,7 @@ end
 function scatter_plot_signal(data)
     % plots the xy vectors
     scatter3(data(:, 1), data(:, 2), data(:,3), 'r');
+    % axis style equal
 end
 
 function plot_delaunay(data)
