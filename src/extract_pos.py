@@ -1,6 +1,8 @@
 import logging 
 import mylogger
 import subprocess
+import time
+import csv
 
 class PlayerConfig:
     def __init__(self):
@@ -24,7 +26,7 @@ class Position:
         self.x_vel      = float(tokens[10])
         self.y_vel      = float(tokens[11])
         self.yaw_vel    = float(tokens[12])
-
+        self.signal     = int(get_wifi())
         # Motor stall
         # self.motor = tokens[13]
     
@@ -36,9 +38,18 @@ class Position:
         "\tX vel: %f \n" \
         "\tY vel: %f \n" \
         "\tYaw vel: %f\n"\
-        % (self.time, self.x_pos, self.y_pos, self.yaw_pos, self.x_vel, self.y_vel, self.yaw_vel)
+        "\tSignal: %f\n"\
+        % (self.time, self.x_pos, self.y_pos, self.yaw_pos, self.x_vel, self.y_vel, self.yaw_vel, self.signal)
 
         return representation
+
+def get_wifi():
+
+    a = open("/proc/net/wireless","r")
+    a.readline()
+    a.readline()
+    wlan0 = a.readline()
+    return int(wlan0[15:17])
 
 def tail_file(filename):
     """
@@ -46,23 +57,36 @@ def tail_file(filename):
     """
     # Holds all of the responses 
     responses = []
+    mapfile = 'maps.csv'
     
     f = subprocess.Popen(['tail', '-F', filename],\
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    ts = time.time()
     while True:
-        for line in f.readlines():
-            try:
-                response = process_line(line)
-                if response is not None:
-                    responses.append(response)
-                else:
-                    pass
-            except Exception as e:
-                logging.error("Error..." + str(e))
+        line = f.stdout.readline().decode()
+        try:
+            response = process_line(line)
+            if response is not None:
+                if (ts < time.time()):
+                     responses.append(response)
+                     write_csv(response, mapfile)
+                     print(response)
+                     ts = time.time() + 0.1
+                #f.stdout.flush()
+                #time.sleep(1)
+            else:
                 pass
-            
+        except Exception as e:
+            logging.error("Error..." + str(e))
+            pass
+        
     return responses
-    
+
+def write_csv(data, filename):
+    with open(filename, "a+") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow([data.x_pos, data.y_pos, data.signal])
+
 
 def read_file(filename):
     """
@@ -109,10 +133,12 @@ def is_position2d(line) -> bool:
     int(tokens[config.subtype_token[0]]) == config.subtype_token[1]
 
 if __name__ == "__main__":
-    data_file = "data/PLAYER_fprintf.TEST.log"
+    data_file = "/run/shm/PLAYER_fprintf.log"
     mylogger.config_logs()
-    responses = read_file(data_file)
+    #responses = read_file(data_file)
+    responses = tail_file(data_file)
     print(responses)
+
 
 
 
